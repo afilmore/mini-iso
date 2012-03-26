@@ -1,0 +1,96 @@
+#!/bin/sh
+################################################################################
+#	[tools] - This is part of GLight - Lightweight GTK Desktop for Linux -
+#
+#	Purpose
+#		Helper functions
+#
+#	Authors
+#		Hotnuma         <hotnuma@gmail.com>
+#
+#	License
+#		Copyright (C) 2009 Hotnuma <hotnuma@gmail.com>
+#
+#       This program is licensed under the terms of the GNU GPL Version 2
+#       as published by the Free Software Foundation:
+#       http://www.fsf.org/licensing/licenses/info/GPLv2.html
+#
+################################################################################
+
+################################################################################
+# Global Variables
+################################################################################
+TOOL_CURRENT_DIR=`pwd`
+OUT_LOG=$TOOL_CURRENT_DIR/output.log
+ERR_LOG=$TOOL_CURRENT_DIR/error.log
+
+
+if [ "$TOOL_SHOW_OUTPUT" != "1" ]; then
+	echo > $OUT_LOG
+	echo > $ERR_LOG
+	exec 1>$OUT_LOG 2>$ERR_LOG
+fi
+
+
+################################################################################
+# Functions
+################################################################################
+tool_echo ()
+{
+	if [ "$TOOL_SHOW_OUTPUT" = "1" ]; then
+		echo "$@"
+	else
+		# FIXME : a way to do it better ???
+		echo "$@"
+		echo "$@" 1>&2
+	fi
+}
+
+tool_start ()
+{
+	msg=$@
+	
+	tool_echo "################################################################################"
+	tool_echo "# $msg"
+	tool_echo "################################################################################"
+}
+
+tool_warning ()
+{
+	msg=$@
+	
+	tool_echo "********************************************************************************"
+	tool_echo "Warning $msg"
+	tool_echo "Continue..."
+	tool_echo "********************************************************************************"
+}
+
+tool_abort ()
+{
+	msg=$@
+	
+	tool_echo "********************************************************************************"
+	tool_echo "Fatal error $msg"
+	tool_echo "Abort..."
+	tool_echo "********************************************************************************"
+	
+	if [ "$TOOL_IGNORE_ERROR" != "1" ]; then
+		exit 1
+	fi
+}
+
+tool_execute ()
+{
+	cmd=$@
+	
+	tool_echo "--------------------------------------------------------------------------------"
+	tool_echo $cmd
+	tool_echo "--------------------------------------------------------------------------------"
+	
+	($cmd)
+	
+	if [ "$?" -ne "0" ]; then
+		tool_abort "in command: $cmd"
+	fi
+}
+

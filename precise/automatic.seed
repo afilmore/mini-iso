@@ -1,0 +1,68 @@
+# Locale sets language and country.
+#d-i debian-installer/locale string fr_FR
+
+# Disable automatic (interactive) keymap detection.
+#d-i console-setup/ask_detect boolean false
+#d-i console-setup/layoutcode string fr
+
+# Any hostname and domain names assigned from dhcp take precedence over
+# values set here. However, setting the values still prevents the questions
+# from being shown, even if values come from dhcp.
+#d-i netcfg/get_hostname string lubuntu
+#d-i netcfg/get_domain string home
+
+### Mirror settings
+# If you select ftp, the mirror/country string does not need to be set.
+#d-i mirror/protocol string ftp
+#d-i mirror/country string FR
+#d-i mirror/http/hostname string us.archive.ubuntu.com
+#d-i mirror/http/directory string /ubuntu
+#d-i mirror/http/proxy string
+#d-i mirror/http/mirror select us.archive.ubuntu.com
+
+### Partitioning
+# If the system has free space you can choose to only partition that space.
+# Alternatives: custom, some_device, some_device_crypto, some_device_lvm.
+#d-i partman-auto/init_automatically_partition select some_device
+#d-i partman-auto/disk string /dev/sda
+#d-i partman-auto/method string regular
+#d-i partman-auto/choose_recipe select atomic
+#d-i partman/confirm_write_new_label boolean true
+#d-i partman/choose_partition select finish
+#d-i partman/confirm boolean true
+
+### Account setup
+# Skip creation of a root account (normal user account will be able to
+# use sudo). The default is false; preseed this to true if you want to set
+# a root password.
+#d-i passwd/root-login boolean true
+# Alternatively, to skip creation of a normal user account.
+#d-i passwd/make-user boolean false
+
+# Root password, either in clear text
+#d-i passwd/root-password password set1strongPassword
+#d-i passwd/root-password-again password set1strongPassword
+# or encrypted using an MD5 hash.
+#d-i passwd/root-password-crypted password [MD5 hash]
+
+# Set to true if you want to encrypt the first user's home directory.
+#d-i user-setup/encrypt-home boolean false
+
+# Additional repositories, local[0-9] available
+
+# Policy for applying updates. May be "none" (no automatic updates),
+# "unattended-upgrades" (install security updates automatically), or
+# "landscape" (manage system with Landscape).
+#d-i pkgsel/update-policy select none
+
+### Clock and time zone setup
+# Controls whether or not the hardware clock is set to UTC.
+#d-i clock-setup/utc boolean true
+
+# Enable extras.ubuntu.com.
+d-i	apt-setup/extras	boolean true
+# Install the Lubuntu desktop.
+tasksel	tasksel/first	multiselect lubuntu-core
+d-i	preseed/early_command	string . /usr/share/debconf/confmodule; db_get debconf/priority; case $RET in low|medium) db_fset tasksel/first seen false; echo 'tasksel tasksel/first seen false' >>/var/lib/preseed/log ;; esac
+# No LXDE translation packages yet.
+d-i	pkgsel/language-pack-patterns	string

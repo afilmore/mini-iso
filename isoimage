@@ -1,0 +1,164 @@
+#!/bin/sh
+################################################################################
+#
+# isoimage
+# 
+# Copyright 2012 Axel FILMORE <axel.filmore@gmail.com>
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License Version 2.
+# http://www.gnu.org/licenses/gpl-2.0.txt
+# 
+# Purpose:  generate a mini.iso image from an existing one.
+#           
+# Example : you have a renamed mini.iso image as
+#           precise/netinstall/precise-i386-20120215.iso
+#           then run :
+#           sudo ./isoimage -d precise -r 20120215
+#           the generated image will be :
+#           precise/realise/precise-i386-20120215.iso
+# 
+################################################################################
+#===============================================================================
+# Global parameters
+#===============================================================================
+CURRENT_DIR=`pwd`
+TOOLS="./tools"
+TOOL_IGNORE_ERROR="0"
+TOOL_SHOW_OUTPUT="1"
+
+# default options
+OPT_DISTNAME="precise"
+OPT_ARCH="i386"
+OPT_RELEASE="20120215"
+
+
+#===============================================================================
+# Initialize the script...
+#===============================================================================
+while getopts d:r:h option
+do
+    case $option in
+        d)
+            OPT_DISTNAME=$OPTARG
+        ;;
+        r)
+            OPT_RELEASE=$OPTARG
+        ;;
+        h)
+            echo "* Generate ISO image:
+\tsudo ./isoimage -d dist_name -r release
+example:
+\tsudo ./isoimage -d precise -r 20120215"
+            exit 0
+        ;;
+        ?)
+            echo "Type \"$0 -h\" for help"
+            exit 1
+        ;;
+    esac
+done
+
+
+#-------------------------------------------------------------------------------
+# include helper functions
+#-------------------------------------------------------------------------------
+. "$TOOLS"
+
+#-------------------------------------------------------------------------------
+# build settings
+#-------------------------------------------------------------------------------
+NETBOOT_BASE_DIR="$CURRENT_DIR/$OPT_DISTNAME"
+NETBOOT_ISO="${OPT_DISTNAME}-${OPT_ARCH}-${OPT_RELEASE}.iso"
+TEMP_ISO_DIR="$NETBOOT_BASE_DIR/tmp_iso"
+ISO_OUTPUT_DIR="$NETBOOT_BASE_DIR"
+
+
+extract_iso ()
+{
+    # extract_iso $netboot_base_dir $netboot_iso $temp_iso_dir
+    
+    netboot_base_dir=$1
+    src_iso=$netboot_base_dir/netinstall/$2
+    preseed_base_dir=$netboot_base_dir
+    tmp_base_dir=$3
+    tmp_iso_dir=$tmp_base_dir/iso
+    tmp_irmod=$tmp_base_dir/irmod
+    
+	tool_start "Extract \"$src_iso\" to \"$tmp_base_dir\""
+    
+    # mount iso image
+    umount /media/cdrom
+    tool_execute "mount -o loop -t iso9660 $src_iso /media/cdrom"
+    
+    # create temp directory
+    rm -rf "$tmp_base_dir"
+    tool_execute "mkdir -p $tmp_iso_dir"
+    
+    # copy image content
+    tool_execute "cp -pr /media/cdrom/. $tmp_iso_dir"
+    tool_execute "umount /media/cdrom"
+    
+    #------------------------------------------------------------------------------------------------
+    # copy CD menu
+    tool_execute "mv $tmp_iso_dir/txt.cfg $tmp_iso_dir/txt.cfg.orig"
+    tool_execute "cp $netboot_base_dir/txt.cfg $tmp_iso_dir/txt.cfg"
+    #------------------------------------------------------------------------------------------------
+    
+    #------------------------------------------------------------------------------------------------
+    # copy splash image
+    tool_execute "mv $tmp_iso_dir/splash.png $tmp_iso_dir/splash.png.orig"
+    tool_execute "cp $netboot_base_dir/lubuntu.png $tmp_iso_dir/splash.png"
+    #------------------------------------------------------------------------------------------------
+    
+    # extract initrd
+    mkdir -p $tmp_irmod
+    cd $tmp_irmod
+    gzip -d < "$tmp_iso_dir/initrd.gz" | \
+        cpio --extract --verbose --make-directories --no-absolute-filenames
+    
+    #------------------------------------------------------------------------------------------------
+    # copy preseed file
+#    tool_execute "cp $netboot_base_dir/automatic.seed $tmp_irmod/preseed.cfg"
+    tool_execute "cp $netboot_base_dir/automatic.seed $tmp_irmod/preseed.cfg"
+    #------------------------------------------------------------------------------------------------
+
+    # compress initrd
+    find . | cpio -H newc --create --verbose | \
+        gzip -9 > "$tmp_iso_dir/initrd.gz"
+    
+    cd $CURRENT_DIR
+}
+
+build_iso ()
+{
+    input_dir=$1
+    iso_file=$2
+    
+	tool_start "Generate ISO image $iso_file from $input_dir directory"
+    
+    if [ -e "$iso_file" ];then
+        rm $iso_file
+    fi
+    
+    cd $input_dir
+    tool_execute "genisoimage -r -V ${OPT_DISTNAME}-${OPT_ARCH}-${OPT_RELEASE} -input-charset utf8 -cache-inodes -J -l -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o $iso_file $input_dir"
+    
+    cd $CURRENT_DIR
+}
+
+#===============================================================================
+# generate iso image...
+#===============================================================================
+if [ ! -e $NETBOOT_BASE_DIR/netinstall/$NETBOOT_ISO ];then
+    echo "* Can't find \"$NETBOOT_BASE_DIR/netinstall/$NETBOOT_ISO\"
+abort..."
+    exit 1
+fi
+
+extract_iso $NETBOOT_BASE_DIR $NETBOOT_ISO $TEMP_ISO_DIR
+build_iso $TEMP_ISO_DIR/iso $NETBOOT_BASE_DIR/release/$NETBOOT_ISO
+
+
+
+
